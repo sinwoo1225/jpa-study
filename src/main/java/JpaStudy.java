@@ -13,25 +13,16 @@ public class JpaStudy {
 
         tx.begin();
         try{
-            // 생성
             Member member = new Member();
-            member.setName("시루떡");
+            member.setName("회원1");
             em.persist(member);
-            em.flush(); // ✅ 명시적으로 DB에 쿼리를 보냄
-
-            // 수정
-            member.setName("시루");
             em.flush();
+            em.clear();
 
-            // 삭제
-            em.remove(member);
-            em.flush();
+            Member memberA = em.find(Member.class, 1L);
+            memberA.setName("회원B"); // 수정
 
-            // 단건 조회
-            member = em.find(Member.class, 1L );
-            System.out.println(member);
-
-            tx.commit();
+            tx.commit(); // 수정된 객체를 바탕으로 UPDATE쿼리가 나간다.
         } catch(Exception ex) {
             tx.rollback();
             ex.printStackTrace();

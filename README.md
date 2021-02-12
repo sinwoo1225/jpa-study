@@ -1,7 +1,7 @@
 # JPA 스터디
 
 자바 ORM 표준 JPA 강의 정리 및 스터디 [강의링크](https://www.inflearn.com/course/ORM-JPA-Basic/)
-
+김영한님의 인프런 강의 `자바 ORM 표준 JPA`를 보고 정리한 내용입니다.
 ---
 
 ## JPA 시작
@@ -108,7 +108,7 @@ public class JpaStudy {
         EntityTransaction tx = em.getTransaction();
 
         tx.begin();
-        try{
+        try {
             // 생성
             Member member = new Member();
             member.setName("시루떡");
@@ -124,11 +124,11 @@ public class JpaStudy {
             em.flush();
 
             // 단건 조회
-            member = em.find(Member.class, 1L );
+            member = em.find(Member.class, 1L);
             System.out.println(member);
 
             tx.commit();
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             tx.rollback();
             ex.printStackTrace();
         } finally {
@@ -138,8 +138,108 @@ public class JpaStudy {
     }
 }
 ```
-JPA를 이용하기 위해서는 `EntityMangerFactory`를 생성하고 `EntityManager`를 실행해야한다. 그리고 데이터 변경은
-트랜잭션 안에서 실행되어야한다.
-`EntityManager`의 `persist`를 통해 JPA가 객체를 영속성 컨텍스트에 등록한다. 그리고 트랜잭션이 닫히거나 영속성 컨택스트가 flush될때 쿼리를 
-DB에게 보낸다. 영속성 컨택스트에서 관리되는 객체를 수정하게 되면 DB에 반영이 된다. `EntityManager`의 `remove`를 통해 객체 그리고 객체와
-연관되어있는 테이블 행을 삭제할 수 있다. 
+
+JPA를 이용하기 위해서는 `EntityMangerFactory`를 생성하고 `EntityManager`를 실행해야한다. 그리고 데이터 변경은 트랜잭션 안에서 실행되어야한다.
+`EntityManager`의 `persist`를 통해 JPA가 객체를 영속성 컨텍스트에 등록한다. 그리고 트랜잭션이 닫히거나 영속성 컨택스트가 flush될때 쿼리를 DB에게 보낸다. 영속성 컨택스트에서 관리되는
+객체를 수정하게 되면 DB에 반영이 된다. `EntityManager`의 `remove`를 통해 객체 그리고 객체와 연관되어있는 테이블 행을 삭제할 수 있다.
+
+---
+
+## 영속성 관리
+
+### 영속성 컨텍스트
+
+> 엔티티로 등록된 객체를 영구 저장하는 환경
+
+엔티티 매니저를 통해서 영속성 컨텍스트에 접근할 수 있다.
+`em.persist(member)`코드에서 persist메소드를 통해 매개변수로 전달한 객체를 영속성 컨택스트가 관리하게 된다.
+
+### 엔티티의 생명주기
+
+* **비영속**: 영속성 컨텍스트와 전혀 관계가 없는 새로운 상태
+* **영속**: 영속성 컨텍스트에 관리되는 상태
+* **준영속**: 영속성 컨택스트에 저장되었다가 분리된 상태
+* **삭제**: 삭제된 상태
+
+### 코드로 보는 엔티티의 생명주기
+
+```java
+public class JpaStudy {
+    public static void main(String[] args) {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("hello");
+        EntityManager em = emf.createEntityManager();
+        EntityTransaction tx = em.getTransaction();
+
+        tx.begin();
+        try {
+            // 객체를 생성한 상태 (비영속)
+            Member member = new Member();
+            member.setName("회원1");
+
+            // 영속성 컨텍스트가 엔티티를 관리하는 상태 (영속)
+            em.persist(member);
+
+            // 영속성 컨텍스트에서 분리된 상태 (준영속)
+            em.detach(member);
+
+            // 객체를 삭제한 상태 (삭제)
+            em.remove(member);
+            tx.commit();
+        } catch (Exception ex) {
+            tx.rollback();
+            ex.printStackTrace();
+        } finally {
+            em.close();
+        }
+        emf.close();
+    }
+}
+```
+
+### 영속성 컨텍스트의 장점
+
+* 1차 캐시
+* 동일성 보장
+* 트랜잭션을 지원하는 쓰기 지연
+* 변경 감지
+* 지연 로딩
+
+### 영속성 엔티티의 동일성 보장
+
+```java
+Member member = new Member();
+member.setName("회원1");
+em.persist(member);
+em.flush();
+em.clear();
+
+// 동일 맴버조회
+Member a=em.find(Member.class,1L);
+Member b=em.find(Member.class,1L);
+System.out.println(a==b); // a와 b의 동일성 비교 true
+```
+
+### 트랜잭션 쓰기 지연
+`transaction.commit()`또는 `em.flush()`호출시에 영속성 컨텍스트를 기반으로 DB에 쿼리를 보냄
+
+### 변경 감지
+```java
+Member memberA = em.find(Member.class, 1L);
+memberA.setName("회원B"); // 수정
+            
+tx.commit(); // 수정된 객체를 바탕으로 UPDATE쿼리가 나간다.
+```
+`commit`또는 `flush`시에 영속성 컨텍스트의 내용을 보고 수정된 엔티티가 있으면 DB로 UPDATE 쿼리를 날린다.
+
+### 플러시
+> 영속성 컨텍스트의 변경내용을 데이터베이스에 반영
+
+#### 플러시 발생시 동작순서
+1. 변경감지
+2. 수정된 엔티티 쓰기 지연 SQL 저장소에 등록
+3. 쓰기 지연 SQL 저장소의 쿼리를 데이터베이스에 전송(등록,수정,삭제 쿼리)
+
+#### 영속성 컨텍스트가 플러시되는 때
+* `em.flush()` 직접 호출
+* 트랜잭션 커밋시 플러시 자동 호출
+* JPQL 쿼리 실행시 플러시 자동 호출
