@@ -243,3 +243,75 @@ tx.commit(); // 수정된 객체를 바탕으로 UPDATE쿼리가 나간다.
 * `em.flush()` 직접 호출
 * 트랜잭션 커밋시 플러시 자동 호출
 * JPQL 쿼리 실행시 플러시 자동 호출
+
+---
+
+## 엔티티 매핑
+
+### 엔티티 매핑을 위한 어노테이션
+* 객체와 테이블 매핑: @Entity, @Table
+* 필드와 컬럼 매핑: @Column
+* 기본 키 매핑: @Id
+* 연관관계 매핑: @ManyToOne, @JoinColumn
+
+### @Entity
+* JPA가 관리하는 영속성 객체, 엔티티라고 명명
+
+**주의**
+* **기본생성자 필수**(파라미터가 없는 public 또는 protected 생성자)
+* final 클래스, enum, interface, inner 클래스 사용X
+* 저장할 필드에 final 사용X
+
+### 데이터베이스 스키마 자동 생성 
+**hibernate.hbm2ddl.auto**
+* create: 기존테이블 삭제 후 다시 생성(DROP+CREATE)
+* create-drop: create와 같으나 종료시점에 테이블 DROP
+* update: 변경분만 반영
+* validate: 엔티티와 테이블이 정상 매핑되었는지만 확인
+* none: 사용하지 않음
+
+### 필드와 컬럼 매핑
+
+```java
+@Entity
+@Getter @Setter
+public class Member {
+    @Id
+    @GeneratedValue
+    private Long id;
+
+    @Column(name = "name")
+    private String username;
+
+    @Enumerated(EnumType.STRING)
+    private RoleType roleType;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date createdDate;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date lastModifiedDate;
+
+    @Lob
+    private String description;
+
+    public enum RoleType {
+        USER, ADMIN
+    }
+}
+```
+* @Column: 컬럼 매핑
+* @Temporal: 날짜 타입 매핑 -> LocalDate, LocalDateTime은 생략가능
+* @Enumerated: enum 타입 매핑
+* @Lob: BLOB, CLOB 매핑
+* @Transient: 특정 필드를 컬럼에 매핑하지 않음
+
+## 기본키 매핑
+* 기본키 직접 할당: @Id만 사용
+* 자동생성: @GeneratedValue 사용
+    * IDENTITY: 데이터베이스에 위임, MYSQL
+    * SEQUENCE: 데이터베이스 시퀀스 오브젝트 사용, ORACLE
+        * @SequenceGenerator 필요
+    * TABLE: 키 생성용 테이블 사용, 모든 DB에서 사용
+        * @TableGenerator 필요
+    * AUTO: 방언에 따라 자동 지정, 기본값
